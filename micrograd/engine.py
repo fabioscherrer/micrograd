@@ -8,15 +8,23 @@ class Value:
         # internal variables used for autograd graph construction
         self._backward = lambda: None
         self._prev = set(_children)
-        self._op = _op # the op that produced this node, for graphviz / debugging / etc
+        self._op = _op # the op that produced this node, for graphviz / debugging / etc (op = operator)
 
     def __add__(self, other):
+        # 1. Handle non-Value inputs (e.g., a + 1)
         other = other if isinstance(other, Value) else Value(other)
+
+        # 2. Create the new node (the child)
+        # We perform the actual math (self.data + other.data)
+        # We record the parents: (self, other) -> This creates the graph links!
         out = Value(self.data + other.data, (self, other), '+')
 
+        # 3. Define how to propagate gradients BACKWARDS for this specific operation
         def _backward():
             self.grad += out.grad
             other.grad += out.grad
+        
+        # 4. Store this specific backward function onto the new node
         out._backward = _backward
 
         return out
@@ -43,10 +51,10 @@ class Value:
         return out
 
     def relu(self):
-        out = Value(0 if self.data < 0 else self.data, (self,), 'ReLU')
+        out = Value(0 if self.data < 0 else self.data, (self,), 'ReLU') # If it's under 0, then it is set to 0, else it's x
 
         def _backward():
-            self.grad += (out.data > 0) * out.grad
+            self.grad += (out.data > 0) * out.grad # False = 0, True = 1
         out._backward = _backward
 
         return out
